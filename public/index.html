@@ -316,6 +316,15 @@
 
                 <div class="controls">
                     <button class="submit-btn" id="submit-guess" disabled>Process Guess</button>
+                    <button class="length-btn" id="toggle-bulk"
+                        style="background: rgba(59, 130, 246, 0.1); color: var(--accent); border-color: rgba(59, 130, 246, 0.2);">Bulk
+                        Paste</button>
+                </div>
+
+                <div id="bulk-area" style="display: none; margin-top: 20px; text-align: left;">
+                    <textarea id="bulk-input" placeholder="Paste your Wordle or Wordseek results here..."
+                        style="width: 100%; height: 120px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; padding: 12px; font-family: 'Inter', sans-serif; resize: none; margin-bottom: 10px;"></textarea>
+                    <button class="submit-btn" id="submit-bulk" style="width: 100%;">Analyze Pasted Results</button>
                 </div>
 
                 <p style="text-align: center; color: #64748b; font-size: 0.85rem; margin-top: 20px;">
@@ -381,6 +390,34 @@
             document.getElementById('reset-trigger').addEventListener('click', resetSolver);
 
             submitBtn.addEventListener('click', submitGuess);
+
+            // Bulk Paste Toggle
+            document.getElementById('toggle-bulk').addEventListener('click', () => {
+                const area = document.getElementById('bulk-area');
+                area.style.display = area.style.display === 'none' ? 'block' : 'none';
+            });
+
+            document.getElementById('submit-bulk').addEventListener('click', async () => {
+                const text = document.getElementById('bulk-input').value;
+                if (!text.trim()) return;
+
+                const res = await fetch('/api/bulk-guess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, text })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    guesses = data.guesses;
+                    document.getElementById('bulk-input').value = "";
+                    document.getElementById('bulk-area').style.display = 'none';
+                    updateUIState(data);
+                    render();
+                } else {
+                    alert("No valid guesses found in the pasted text.");
+                }
+            });
 
             // Handle Input
             document.addEventListener('keydown', (e) => {

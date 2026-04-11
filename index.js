@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const WordleSolver = require('./solver');
+const { parseLine, EMOJI_REG } = require('./parser');
 require('./bot'); // Starts the Telegram bot
 
 const app = express();
@@ -49,6 +50,45 @@ app.post('/api/guess', (req, res) => {
     } else {
         res.status(400).json({ success: false, message: 'Invalid guess or result' });
     }
+});
+
+app.post('/api/bulk-guess', (req, res) => {
+    const { text, sessionId } = req.body;
+    const solver = getWebSolver(sessionId || 'default');
+    const lines = text.split('\n');
+
+    let processed = 0;
+    for (const line of lines) {
+        if (!line.trim()) continue;
+
+        // Detection
+        const lengthMatch = line.match(/(\d)-letter/i);
+        if (lengthMatch && solver.length === 0) {
+            solver.loadWords(parseInt(lengthMatch[1]));
+        }
+
+        const parsed = parseLine(line, solver.getSuggestions(1)[0]);
+        if (parsed.success) {
+            if (solver.length === 0) {
+                solver.loadWords(parsed.word.length);
+            } else if (parsed.word.length !== solver.length) {
+                continue;
+            }
+
+            if (solver.filter(parsed.word, parsed.result)) {
+                processed++;
+            }
+        }
+    }
+
+    const suggestions = solver.getSuggestions(10);
+    res.json({
+        success: processed > 0,
+        processedCount: solver.guesses.length,
+        remainingCount: solver.possibleWords.length,
+        suggestions: suggestions,
+        guesses: solver.guesses // Send back all guesses to sync the UI
+    });
 });
 
 app.post('/api/reset', (req, res) => {
