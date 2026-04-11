@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle Solver Bot | Premium Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6aaa64;
+            --secondary: #c9b458;
+            --dark: #121213;
+            --gray: #787c7e;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --accent: #3b82f6;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .background-blob {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            filter: blur(60px);
+        }
+
+        .blob-1 {
+            top: -100px;
+            left: -100px;
+            background: radial-gradient(circle, rgba(106, 170, 100, 0.15) 0%, rgba(106, 170, 100, 0) 70%);
+        }
+
+        .blob-2 {
+            bottom: -100px;
+            right: -100px;
+            background: radial-gradient(circle, rgba(201, 180, 88, 0.15) 0%, rgba(201, 180, 88, 0) 70%);
+        }
+
+        .container {
+            max-width: 800px;
+            padding: 40px;
+            text-align: center;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #6aaa64, #c9b458, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -2px;
+        }
+
+        p.tagline {
+            font-size: 1.25rem;
+            color: #94a3b8;
+            margin-bottom: 40px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .wordle-grid {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+
+        .tile {
+            width: 62px;
+            height: 62px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: 700;
+            border-radius: 8px;
+            text-transform: uppercase;
+            animation: bounce 0.5s ease;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .tile.green {
+            background-color: var(--primary);
+        }
+
+        .tile.yellow {
+            background-color: var(--secondary);
+        }
+
+        .tile.gray {
+            background-color: var(--gray);
+        }
+
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 18px 40px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.5);
+            background-color: #2563eb;
+        }
+
+        .features {
+            margin-top: 60px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            text-align: left;
+        }
+
+        .feature-item {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .feature-item h3 {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+            color: var(--primary);
+        }
+
+        .feature-item p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        .status {
+            margin-top: 40px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(106, 170, 100, 0.1);
+            color: #86efac;
+            border-radius: 100px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 24px;
+                border-radius: 0;
+                min-height: 100vh;
+                width: 100%;
+                border: none;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .tile {
+                width: 45px;
+                height: 45px;
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="background-blob blob-1"></div>
+    <div class="background-blob blob-2"></div>
+
+    <div class="container">
+        <div class="wordle-grid">
+            <div class="tile green">W</div>
+            <div class="tile yellow">O</div>
+            <div class="tile gray">R</div>
+            <div class="tile green">D</div>
+            <div class="tile yellow">S</div>
+        </div>
+
+        <h1>WordSolve AI</h1>
+        <p class="tagline">The ultimate Wordle assistant for professionals.</p>
+
+        <div class="status">
+            <div class="dot"></div>
+            Online & Ready
+        </div>
+
+        <div class="btn-container" style="margin-top: 40px;">
+            <a href="https://t.me/your_bot_username" class="btn btn-primary">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m22 2-7 20-4-9-9-4Z" />
+                    <path d="M22 2 11 13" />
+                </svg>
+                Launch on Telegram
+            </a>
+        </div>
+
+        <div class="features">
+            <div class="feature-item">
+                <h3>Smart Analysis</h3>
+                <p>Advanced solver logic that filters thousands of words in milliseconds.</p>
+            </div>
+            <div class="feature-item">
+                <h3>Multi-Length</h3>
+                <p>Switch seamlessly between 4, 5, and 6-letter puzzles.</p>
+            </div>
+            <div class="feature-item">
+                <h3>Adaptive</h3>
+                <p>Supports manual guesses, styled text, and Wordseek forwards.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
