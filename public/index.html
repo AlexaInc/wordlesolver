@@ -408,6 +408,7 @@
                 });
 
                 const data = await res.json();
+                document.getElementById('bulk-input').value = ""; // Clear after analyze
                 if (data.success) {
                     guesses = data.guesses;
                     document.getElementById('bulk-input').value = "";
@@ -470,6 +471,7 @@
                 updateUIState({ remainingCount: '?', suggestions: [] });
             });
 
+            document.getElementById('bulk-input').value = ""; // Clear on reset
             render();
         }
 

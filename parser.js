@@ -49,7 +49,7 @@ const EMOJI_MAP = {
 function parseLine(line, lastSuggestion) {
     const emojis = line.match(EMOJI_REG);
     if (!emojis || emojis.length < 4 || emojis.length > 6) {
-        return { error: `Invalid emojis` };
+        return { error: `Invalid emojis (found ${emojis ? emojis.length : 0})` };
     }
 
     const result = emojis.map(e => EMOJI_MAP[e] || 'R').join('');
