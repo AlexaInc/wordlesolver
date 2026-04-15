@@ -61,8 +61,8 @@ bot.on('text', async (ctx) => {
         if (session.solver.length > 0 && currentWordLength !== session.solver.length) {
             shouldReset = true;
         }
-        // Reset if last msg had 5 and this has fewer (new game started)
-        else if (session.lastGuessCount === 5 && currentValidGuesses < 5) {
+        // Reset if last msg had more and this has fewer (new game started)
+        else if (session.lastGuessCount > 0 && currentValidGuesses < session.lastGuessCount) {
             shouldReset = true;
         }
     }
