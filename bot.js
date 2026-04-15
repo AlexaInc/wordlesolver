@@ -10,7 +10,8 @@ function getSolver(chatId) {
         sessions.set(chatId, {
             solver: new WordleSolver(),
             lastSuggestions: [],
-            lastGuessCount: 0
+            lastGuessCount: 0,
+            isCompleted: false
         });
     }
     return sessions.get(chatId);
@@ -65,12 +66,17 @@ bot.on('text', async (ctx) => {
         else if (session.lastGuessCount > 0 && currentValidGuesses < session.lastGuessCount) {
             shouldReset = true;
         }
+        // Reset if previous game was completed
+        else if (session.isCompleted) {
+            shouldReset = true;
+        }
     }
 
     if (shouldReset) {
         session.solver = new WordleSolver();
         session.lastSuggestions = [];
         session.lastGuessCount = 0;
+        session.isCompleted = false;
     }
 
     const solver = session.solver;
@@ -116,6 +122,7 @@ bot.on('text', async (ctx) => {
     session.lastSuggestions = suggestions;
 
     if (suggestions.length === 1 && solver.possibleWords.length === 1) {
+        session.isCompleted = true;
         return ctx.reply(`📝 Processed ${processedLines} guesses\n🎉 Found it! The word is: **${suggestions[0]}**\n\n🔄 Use /reset for new game!\n\n/reset`, { parse_mode: 'Markdown' });
     }
 
