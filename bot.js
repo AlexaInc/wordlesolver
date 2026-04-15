@@ -68,9 +68,9 @@ bot.on('text', async (ctx) => {
     }
 
     if (shouldReset) {
-        sessions.delete(ctx.chat.id);
-        const newSession = getSolver(ctx.chat.id);
-        Object.assign(session, newSession);
+        session.solver = new WordleSolver();
+        session.lastSuggestions = [];
+        session.lastGuessCount = 0;
     }
 
     const solver = session.solver;
@@ -104,8 +104,8 @@ bot.on('text', async (ctx) => {
         }
     }
 
-    if (processedLines > 0) {
-        session.lastGuessCount = processedLines;
+    if (currentValidGuesses > 0) {
+        session.lastGuessCount = currentValidGuesses;
     }
 
     if (processedLines === 0) {
