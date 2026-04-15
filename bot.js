@@ -41,16 +41,33 @@ bot.on('text', async (ctx) => {
     const lines = text.split('\n');
     const session = getSolver(ctx.chat.id);
 
-    // Auto-reset logic: if last message had 5 guesses and this one has fewer (and at least 1)
+    // Auto-detect current message guesses and length
     let currentValidGuesses = 0;
+    let currentWordLength = 0;
 
     for (const line of lines) {
         if (!line.trim()) continue;
         const parsed = parseLine(line, session.lastSuggestions[0]);
-        if (parsed.success) currentValidGuesses++;
+        if (parsed.success) {
+            currentValidGuesses++;
+            if (currentWordLength === 0) currentWordLength = parsed.word.length;
+        }
     }
 
-    if (session.lastGuessCount === 5 && currentValidGuesses > 0 && currentValidGuesses < 5) {
+    // Auto-reset logic
+    let shouldReset = false;
+    if (currentValidGuesses > 0) {
+        // Reset if length changed
+        if (session.solver.length > 0 && currentWordLength !== session.solver.length) {
+            shouldReset = true;
+        }
+        // Reset if last msg had 5 and this has fewer (new game started)
+        else if (session.lastGuessCount === 5 && currentValidGuesses < 5) {
+            shouldReset = true;
+        }
+    }
+
+    if (shouldReset) {
         sessions.delete(ctx.chat.id);
         const newSession = getSolver(ctx.chat.id);
         Object.assign(session, newSession);
@@ -87,7 +104,9 @@ bot.on('text', async (ctx) => {
         }
     }
 
-    session.lastGuessCount = processedLines;
+    if (processedLines > 0) {
+        session.lastGuessCount = processedLines;
+    }
 
     if (processedLines === 0) {
         return; // Do not respond for other messages
