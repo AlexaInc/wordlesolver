@@ -217,10 +217,12 @@ function _pairsFromButtons(btns) {
         } else {
             letter = (stripZeroWidth(_tlRichTextPlain(btn && btn.text))
                 .replace(/[^a-zA-Z]/g, '').toUpperCase()).slice(-1);
+            // WordSeek pill language: success=green, danger=red,
+            // no style / primary = present (blue).  Forwards replace the
+            // callback type with InlineButtonTypeDisabled but keep styles.
             const st = btn.style;
-            if (!st) { pairs.push(null); continue; }
-            state = (st.bgSuccess || st === 'success') ? 'correct'
-                : (st.bgDanger || st === 'danger') ? 'absent' : 'present';
+            state = (st && (st.bgSuccess || st === 'success')) ? 'correct'
+                : (st && (st.bgDanger || st === 'danger')) ? 'absent' : 'present';
         }
         if (!letter) { pairs.push(null); continue; }
         pairs.push({ letter, state });

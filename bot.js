@@ -26,6 +26,7 @@ const botToken = process.env.BOT_TOKEN;
 
 let client = null;
 const debugArmed = new Set();
+const sentenceCase = (w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w);
 let readerActive = false;   // user session attached: it sees full pills, bot gets stripped
 function _setReaderActive(v) { readerActive = !!v; }
 
@@ -213,7 +214,7 @@ async function handle(message, clientArg) {
 
   const answer = solver.getAnswer();
   if (answer) {
-    await reply(`📝 Read ${processedLines} guesses from the ${source}\n🎉 Found it! The word is: **${answer}**\n\n🔄 Send a new board for a new game!\n\n/reset`);
+    await reply(`📝 Read ${processedLines} guesses from the ${source}\n🎉 Found it! The word is: ${sentenceCase(answer)}\n\n🔄 Send a new board for a new game!\n\n/reset`);
     return;
   }
 
@@ -225,10 +226,10 @@ async function handle(message, clientArg) {
   }
 
   let response = `📝 Read ${processedLines} guesses from the ${source}\n`;
-  response += `💡 Best guess: \`${suggestions[0]}\`\n`;
+  response += `💡 Best guess: ${sentenceCase(suggestions[0])}\n`;
   response += `📊 ${remaining} words remaining\n`;
   if (suggestions.length > 1) {
-    response += `🔍 Others: ${suggestions.slice(1, 4).join(', ')}`;
+    response += `🔍 Others: ${suggestions.slice(1, 4).map(sentenceCase).join(', ')}`;
   }
   response += `\n\n/reset`;
   await reply(response);
@@ -324,12 +325,12 @@ async function startReader() {
       const answer = solver.getAnswer();
       let body;
       if (answer) {
-        body = `🎉 Found it! The word is: **${answer}**`;
+        body = `🎉 Found it! The word is: ${sentenceCase(answer)}`;
       } else {
         if (!solver.possibleWords.length) return;
         const sugs = solver.getSuggestions(10);
-        body = `💡 Best guess: \`${sugs[0]}\`\n📊 ${solver.possibleWords.length} words remaining`;
-        if (sugs.length > 1) body += `\n🔍 Others: ${sugs.slice(1, 4).join(', ')}`;
+        body = `💡 Best guess: ${sentenceCase(sugs[0])}\n📊 ${solver.possibleWords.length} words remaining`;
+        if (sugs.length > 1) body += `\n🔍 Others: ${sugs.slice(1, 4).map(sentenceCase).join(', ')}`;
       }
       body = `📝 Read ${n} guesses from the live board\n` + body + '\n\n/reset';
       try {

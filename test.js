@@ -110,15 +110,31 @@ ok('teleproto TL round-trip of pill buttons', () => {
   assert.deepStrictEqual(parseRichTL(back), [{ word: 'K', result: 'Y' }]);
 });
 
-ok('parseRichTL: style-only buttons work, stateless buttons invalidate row', () => {
+ok('parseRichTL: style-only buttons work, no style = present pill', () => {
   const { parseRichTL } = require('./parser');
   const b = (ch, style) => ({ text: { className: 'TextPlain', text: ch }, style });
   const styled = { blocks: [{ buttons: [
     b('H', { bgDanger: true }), b('A', { bgSuccess: true }),
     b('T', {}), b('E', { bgPrimary: true })] }] };
   assert.deepStrictEqual(parseRichTL(styled), [{ word: 'HATE', result: 'RGYY' }]);
-  const stateless = { blocks: [{ buttons: [b('H', null), b('A', undefined)] }] };
-  assert.strictEqual(parseRichTL(stateless), null);
+  const nostyle = { blocks: [{ buttons: [b('H', null), b('A', undefined)] }] };
+  assert.deepStrictEqual(parseRichTL(nostyle), [{ word: 'HA', result: 'YY' }]);
+});
+
+ok('FORWARD wire capture: disabled buttons + styles parse to exact rows', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { Reader } = require('teleproto/tl/binary/Reader');
+  const { parseRichTL } = require('./parser');
+  const hex = fs.readFileSync(path.join(__dirname, 'test/fixtures/rich-wire-forward.hex'), 'utf8').trim();
+  const rich = new Reader(Buffer.from(hex, 'hex')).tgReadObject();
+  assert.deepStrictEqual(parseRichTL(rich), [
+    { word: 'HELLO', result: 'RRRRR' },
+    { word: 'APPLE', result: 'RYRRR' },
+    { word: 'PILOT', result: 'YRRRR' },
+    { word: 'HAPPY', result: 'RRRGG' },
+    { word: 'HARRY', result: 'RRRRG' },
+  ]);
 });
 
 ok('REAL wire capture: inline textButton pills parse to exact rows', () => {
@@ -199,5 +215,5 @@ ok('REAL wire capture: inline textButton pills parse to exact rows', () => {
   assert(bare.sent.length && bare.sent[0].message.includes('\u{1F52C}'));
   assert(bare.sent[0].message.includes('"richMessage": "ABSENT"'));
   console.log('ok  handler self-diagnoses unreadable boards');
-  console.log(`\n${n + 7} tests passed`);
+  console.log(`\n${n + 8} tests passed`);
 })().catch(e => { console.error(e); process.exit(1); });
