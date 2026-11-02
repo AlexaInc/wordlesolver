@@ -141,10 +141,24 @@ ok('teleproto TL round-trip of pill buttons', () => {
   assert(rich.sent.length && /pill buttons/.test(rich.sent[0].message), 'rich TL reply');
   console.log('ok  handler replies on teleproto richMessage update');
 
+  // MTProto rich messages arrive with EMPTY plain text - regression guard
+  const emptyText = mk({
+    message: '',
+    richMessage: { className: 'RichMessage', blocks: [
+      { className: 'PageBlockButtonRow', buttons: 'HOLA'.split('').map(c => btn(c, 'absent', 'danger')) },
+      { className: 'PageBlockButtonRow', buttons: [
+        btn('H', 'absent', 'danger'), btn('A', 'absent', 'danger'),
+        btn('T', 'absent', 'danger'), btn('E', 'correct', 'success')] },
+    ] },
+  });
+  await handle(emptyText.msg);
+  assert(emptyText.sent.length && /pill buttons/.test(emptyText.sent[0].message), 'empty-text rich reply');
+  console.log('ok  handler solves rich board with empty plain text');
+
   const bare = mk({ message: '4-letter mode\n2/30 guesses\nHOLA\nHATE' });
   await handle(bare.msg);
   assert(bare.sent.length && bare.sent[0].message.includes('\u{1F52C}'));
   assert(bare.sent[0].message.includes('"richMessage": "ABSENT"'));
   console.log('ok  handler self-diagnoses unreadable boards');
-  console.log(`\n${n + 3} tests passed`);
+  console.log(`\n${n + 4} tests passed`);
 })().catch(e => { console.error(e); process.exit(1); });

@@ -258,7 +258,8 @@ async function startBot() {
 
   client.addEventHandler(async (event) => {
     const message = event.message;
-    if (!message || (!message.message && !message.photo)) return;
+    // rich pill messages carry an EMPTY message.message - never gate on text!
+    if (!message || (!message.message && !message.photo && !message.richMessage && !message.rich_message)) return;
     handle(message).catch(err => console.error('handler error:', err.message));
   }, new NewMessage({}));
 }
