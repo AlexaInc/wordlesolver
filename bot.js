@@ -26,6 +26,8 @@ const botToken = process.env.BOT_TOKEN;
 
 let client = null;
 const debugArmed = new Set();
+let readerActive = false;   // user session attached: it sees full pills, bot gets stripped
+function _setReaderActive(v) { readerActive = !!v; }
 
 function diagnose(message) {
   const text = message.message || message.text || message.caption || '';
@@ -189,7 +191,9 @@ async function handle(message, clientArg) {
   const looksLikeBoard = /\d-letter mode/i.test(text) || /\d+\/30 guesses/i.test(text) ||
     /[\u200B-\u200D\u2060\uFEFF]/.test(text) || fwdName === 'wordseek' ||
     !!message.richMessage || !!message.rich_message;
-  if (!processedLines && (fwd || looksLikeBoard || debugArmed.has(message.chat.id))) {
+  const richPresent = !!(message.richMessage || message.rich_message);
+  const readerWillAnswer = readerActive && richPresent && !debugArmed.has(message.chat.id);
+  if (!processedLines && !readerWillAnswer && (fwd || looksLikeBoard || debugArmed.has(message.chat.id))) {
     debugArmed.delete(message.chat.id);
     const strippedFwd = !!(message.forwardOrigin || message.fwdFrom);
     await reply(
@@ -230,6 +234,25 @@ async function handle(message, clientArg) {
   await reply(response);
 }
 
+// --- wire-level truth: hex-dump the decrypted RichMessage subtree as sent ---
+try {
+  const { Reader } = require('teleproto/tl/binary/Reader');
+  const origReadObj = Reader.prototype.tgReadObject;
+  let richDumps = 0;
+  Reader.prototype.tgReadObject = function (...args) {
+    const start = this.offset;
+    const res = origReadObj.apply(this, args);
+    try {
+      if (res && res.className === 'RichMessage' && richDumps < 2) {
+        richDumps++;
+        const hex = Buffer.from(this.stream.subarray(start, this.offset)).toString('hex');
+        console.log('[richhex] ' + hex);
+      }
+    } catch (e) { console.log('[richhex] slice failed:', e.message); }
+    return res;
+  };
+} catch (e) { console.log('[richhex] hook unavailable:', e.message); }
+
 // --- tripwires: make every silent drop visible in the journal ---
 try {
   const { Session } = require('teleproto/network/session/Session');
@@ -268,8 +291,60 @@ async function startBot() {
   }, new NewMessage({}));
 }
 
+async function startReader() {
+  const userSession = process.env.USER_SESSION;
+  if (!userSession) {
+    console.log('[reader] USER_SESSION not set: bot sessions receive WordSeek pills stripped to letters (server-side). Run `npm run login:user` once and add USER_SESSION to .env for real-time live-board reading.');
+    return;
+  }
+  let userClient;
+  try {
+    userClient = new TelegramClient(new StringSession(userSession), apiId, apiHash, {});
+    await userClient.connect();
+    if (!(await userClient.checkAuthorization())) throw new Error('session expired - run npm run login:user again');
+  } catch (e) {
+    console.log('[reader] disabled:', e.message);
+    return;
+  }
+  readerActive = true;
+  console.log('[reader] user session attached - live pill reading enabled (real-time group + private)');
+
+  userClient.addEventHandler(async (event) => {
+    try {
+      const m = event.message;
+      if (!m || m.out || !m.richMessage) return;
+      if (m.date && Date.now() / 1000 - m.date > 120) return; // ignore history/resyncs
+      const rows = parseRichMessage(m);
+      if (!rows || !rows.length) return;
+      const solver = new WordleSolver();
+      solver.loadWords(rows[0].word.length);
+      let n = 0;
+      for (const r of rows) if (solver.filter(r.word, r.result)) n++;
+      if (!n) return;
+      const answer = solver.getAnswer();
+      let body;
+      if (answer) {
+        body = `🎉 Found it! The word is: **${answer}**`;
+      } else {
+        if (!solver.possibleWords.length) return;
+        const sugs = solver.getSuggestions(10);
+        body = `💡 Best guess: \`${sugs[0]}\`\n📊 ${solver.possibleWords.length} words remaining`;
+        if (sugs.length > 1) body += `\n🔍 Others: ${sugs.slice(1, 4).join(', ')}`;
+      }
+      body = `📝 Read ${n} guesses from the live board\n` + body + '\n\n/reset';
+      try {
+        await client.sendMessage(m.chatId, { message: body, parseMode: 'md' });
+      } catch (e1) {
+        await m.reply({ message: body, parseMode: 'md' }); // bot not in this chat: answer from the reader session
+      }
+    } catch (err) {
+      console.log('[reader] handler error:', err.message);
+    }
+  }, new NewMessage({}));
+}
+
 if (apiId && apiHash && botToken) {
-  startBot().catch(err => console.error('Bot error:', err));
+  startBot().then(startReader).catch(err => console.error('Bot error:', err));
 } else {
   console.warn('API_ID/API_HASH/BOT_TOKEN not set - Telegram bot disabled (web UI still runs).');
 }
@@ -277,4 +352,4 @@ if (apiId && apiHash && botToken) {
 process.once('SIGINT', () => client && client.disconnect());
 process.once('SIGTERM', () => client && client.disconnect());
 
-module.exports = { handle, diagnose };
+module.exports = { handle, diagnose, _setReaderActive };

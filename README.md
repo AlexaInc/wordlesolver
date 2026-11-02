@@ -43,6 +43,9 @@ a screenshot via colour + OCR (fallback), or from legacy emoji boards.
 - A Telegram Bot Token (from [@BotFather](https://t.me/BotFather)).
 - `API_ID` / `API_HASH` from <https://my.telegram.org> (MTProto login).
 
+### Real-time pill reading (USER_SESSION)
+See above section...
+
 ### Transport: MTProto via teleproto (not gramjs, not Bot API)
 WordSeek's pill feedback arrives inside the message's `richMessage`
 (RichBlockButtons, TL layer 228+). GramJS is **archived on layer 198**, so
