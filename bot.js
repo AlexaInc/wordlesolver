@@ -41,7 +41,18 @@ function diagnose(message) {
     callback_data: [],
     styles: [],
     text_preview: JSON.stringify(text.slice(0, 60)),
+    rich_text: '',
   };
+  const collect = (n) => {
+    if (!n || typeof n !== 'object') return;
+    if (Array.isArray(n)) return n.forEach(collect);
+    if (typeof n.text === 'string' && /Plain|Paragraph|Subheader|Heading/i.test(n.className || '')) info.rich_text += n.text + ' | ';
+    if (n.text && typeof n.text === 'object') collect(n.text);
+    if (Array.isArray(n.texts)) n.texts.forEach(collect);
+    if (Array.isArray(n.blocks)) n.blocks.forEach(collect);
+  };
+  if (rich) collect(rich);
+  info.rich_text = info.rich_text.slice(0, 200);
   const walk = (node) => {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) { node.forEach(walk); return; }
@@ -65,8 +76,27 @@ function diagnose(message) {
   return info;
 }
 
+function logUpdate(message) {
+  const text = message.message || message.text || message.caption || '';
+  const rich = message.richMessage || message.rich_message;
+  let blocks = 0, buttons = 0;
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return;
+    if (Array.isArray(n)) return n.forEach(walk);
+    if (Array.isArray(n.buttons)) { blocks++; buttons += n.buttons.length; return; }
+    if (Array.isArray(n.blocks)) n.blocks.forEach(walk);
+  };
+  if (rich) walk(rich);
+  const fwd = message.forwardOrigin || message.fwdFrom;
+  console.log(`[update] chat=${message.chat && message.chat.id} fwd=${fwd ? 'yes' : 'no'}` +
+    ` photo=${message.photo ? 'yes' : 'no'} rich=${rich ? 'yes' : 'no'}` +
+    ` blocks=${blocks} buttons=${buttons} textLen=${text.length}` +
+    ` zw=${(text.match(/[\u200B-\u200D\u2060\uFEFF]/g) || []).length}`);
+}
+
 async function handle(message, clientArg) {
   const text = message.message || message.text || message.caption || '';
+  logUpdate(message);
   const reply = async (body, md = true) => {
     await message.reply({ message: body, parseMode: md ? 'md' : undefined });
   };
@@ -147,9 +177,10 @@ async function handle(message, clientArg) {
 
   // 4) looks like a WordSeek board but nothing readable? diagnose loudly
   const fwd = message.forwardOrigin || message.fwdFrom;
-  const looksLikeBoard = /\d-letter mode/i.test(text) ||
-    (fwd && (fwd.username || '').toLowerCase && (fwd.username || '').toLowerCase() === 'wordseek');
-  if (!processedLines && (looksLikeBoard || debugArmed.has(message.chat.id))) {
+  const fwdName = fwd && ((fwd.userName || fwd.username || (fwd.fromId && fwd.fromId.username) || '') + '').toLowerCase();
+  const looksLikeBoard = /\d-letter mode/i.test(text) || fwdName === 'wordseek' ||
+    !!message.richMessage || !!message.rich_message;
+  if (!processedLines && (fwd || looksLikeBoard || debugArmed.has(message.chat.id))) {
     debugArmed.delete(message.chat.id);
     await reply(
       '🔬 I got the message but could not read the pills. What Telegram delivered to me:\n' +
