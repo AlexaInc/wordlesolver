@@ -226,10 +226,33 @@ async function handle(message, clientArg) {
   await reply(response);
 }
 
+// --- tripwires: make every silent drop visible in the journal ---
+try {
+  const { Session } = require('teleproto/network/session/Session');
+  const origUnknown = Session.prototype.onUnknownType;
+  Session.prototype.onUnknownType = function (err) {
+    const id = err && err.invalidConstructorId;
+    console.log(`[tl] SKIPPED unknown constructor 0x${(id >>> 0).toString(16)} (${id}) - whole packet dropped by teleproto`);
+    return origUnknown.call(this, err);
+  };
+} catch (e) { console.log('[tl] onUnknownType hook unavailable:', e.message); }
+
 async function startBot() {
   client = new TelegramClient(new StringSession(''), apiId, apiHash, {});
   await client.start({ botAuthToken: botToken });
   console.log('Bot started with MTProto (teleproto, layer 232 - rich messages supported)');
+  setInterval(() => console.log('[hb] alive'), 30000).unref?.();
+
+  // raw tap: every Update object that survives deserialization, before filters
+  const { Raw } = require('teleproto/events');
+  client.addEventHandler((u) => {
+    const n = u && (u.className || (u.constructor && u.constructor.name));
+    if (!n || !/Update/.test(n)) return;
+    const m = u.message;
+    console.log('[raw]', n, m
+      ? `msgId=${m.id} rich=${m.richMessage ? 'yes' : 'no'} textLen=${(m.message || '').length} out=${!!m.out}`
+      : '');
+  }, new Raw());
 
   client.addEventHandler(async (event) => {
     const message = event.message;
