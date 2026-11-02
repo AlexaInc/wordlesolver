@@ -191,7 +191,11 @@ async function handle(message, clientArg) {
     !!message.richMessage || !!message.rich_message;
   if (!processedLines && (fwd || looksLikeBoard || debugArmed.has(message.chat.id))) {
     debugArmed.delete(message.chat.id);
+    const strippedFwd = !!(message.forwardOrigin || message.fwdFrom);
     await reply(
+      (strippedFwd
+        ? '⚠️ Forwarded boards cannot be solved: Telegram strips pill colours and callback data when forwarding (the letters arrive, the states do not - I verified against the WordSeek source). Play in the group where I am a member - I read the live board there in real time - or send a screenshot here.\n\n'
+        : '') +
       '🔬 I got the message but could not read the pills. What Telegram delivered to me:\n' +
       JSON.stringify(diagnose(message), null, 1) +
       '\n\nPlease also send a *screenshot* of the board so I can solve it now ' +

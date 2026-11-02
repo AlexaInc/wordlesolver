@@ -110,6 +110,17 @@ ok('teleproto TL round-trip of pill buttons', () => {
   assert.deepStrictEqual(parseRichTL(back), [{ word: 'K', result: 'Y' }]);
 });
 
+ok('parseRichTL: style-only buttons work, stateless buttons invalidate row', () => {
+  const { parseRichTL } = require('./parser');
+  const b = (ch, style) => ({ text: { className: 'TextPlain', text: ch }, style });
+  const styled = { blocks: [{ buttons: [
+    b('H', { bgDanger: true }), b('A', { bgSuccess: true }),
+    b('T', {}), b('E', { bgPrimary: true })] }] };
+  assert.deepStrictEqual(parseRichTL(styled), [{ word: 'HATE', result: 'RGYY' }]);
+  const stateless = { blocks: [{ buttons: [b('H', null), b('A', undefined)] }] };
+  assert.strictEqual(parseRichTL(stateless), null);
+});
+
 // ---- handler end-to-end (teleproto MTProto message in, reply out) ----
 (async () => {
   const { handle } = require('./bot');
@@ -160,5 +171,5 @@ ok('teleproto TL round-trip of pill buttons', () => {
   assert(bare.sent.length && bare.sent[0].message.includes('\u{1F52C}'));
   assert(bare.sent[0].message.includes('"richMessage": "ABSENT"'));
   console.log('ok  handler self-diagnoses unreadable boards');
-  console.log(`\n${n + 4} tests passed`);
+  console.log(`\n${n + 5} tests passed`);
 })().catch(e => { console.error(e); process.exit(1); });

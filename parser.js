@@ -192,7 +192,7 @@ function parseRichTL(rich) {
         if (!node || typeof node !== 'object') return;
         if (Array.isArray(node)) { node.forEach(walk); return; }
         if (Array.isArray(node.buttons)) {
-            let word = '', result = '';
+            let word = '', result = '', rowOk = true;
             for (const btn of node.buttons) {
                 const data = btn && btn.type && btn.type.data;
                 const dec = data ? _decodeWh(data) : null;
@@ -204,14 +204,17 @@ function parseRichTL(rich) {
                     letter = (stripZeroWidth(_tlRichTextPlain(btn && btn.text))
                         .replace(/[^a-zA-Z]/g, '').toUpperCase()).slice(-1);
                     const st = btn && btn.style;
-                    state = st && st.bgSuccess ? 'correct'
-                        : st && st.bgDanger ? 'absent' : 'present';
+                    // no callback data AND no style => Telegram stripped the
+                    // state (happens on forwards); the row is then unsolvable
+                    if (!st) { rowOk = false; continue; }
+                    state = st.bgSuccess ? 'correct'
+                        : st.bgDanger ? 'absent' : 'present';
                 }
-                if (!letter) continue;
+                if (!letter) { rowOk = false; continue; }
                 word += letter;
                 result += STATE_TO_CHAR[state];
             }
-            if (word) rows.push({ word, result });
+            if (rowOk && word) rows.push({ word, result });
             return;
         }
         if (Array.isArray(node.blocks)) { node.blocks.forEach(walk); return; }
