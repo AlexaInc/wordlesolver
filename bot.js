@@ -244,15 +244,17 @@ async function startBot() {
   setInterval(() => console.log('[hb] alive'), 30000).unref?.();
 
   // raw tap: every Update object that survives deserialization, before filters
-  const { Raw } = require('teleproto/events');
-  client.addEventHandler((u) => {
-    const n = u && (u.className || (u.constructor && u.constructor.name));
-    if (!n || !/Update/.test(n)) return;
-    const m = u.message;
-    console.log('[raw]', n, m
-      ? `msgId=${m.id} rich=${m.richMessage ? 'yes' : 'no'} textLen=${(m.message || '').length} out=${!!m.out}`
-      : '');
-  }, new Raw());
+  try {
+    const { Raw } = require('teleproto/events');
+    client.addEventHandler((u) => {
+      const n = u && (u.className || (u.constructor && u.constructor.name));
+      if (!n || !/Update/.test(n)) return;
+      const m = u.message;
+      console.log('[raw]', n, m
+        ? `msgId=${m.id} rich=${m.richMessage ? 'yes' : 'no'} textLen=${(m.message || '').length} out=${!!m.out}`
+        : '');
+    }, new Raw({}));
+  } catch (e) { console.log('[raw] tap unavailable:', e.message); }
 
   client.addEventHandler(async (event) => {
     const message = event.message;
