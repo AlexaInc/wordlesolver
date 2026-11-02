@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.log
+test-solver.js
+res/commonWords.json
+.vscode/
+.DS_Store

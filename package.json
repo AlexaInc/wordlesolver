@@ -1,0 +1,22 @@
+{
+  "name": "wordsolvebot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Telegram bot + web solver for Wordle/WordSeek: reads the new WordSeek pill-button messages, screenshots of them, and legacy emoji boards",
+  "dependencies": {
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "pngjs": "^7.0.0",
+    "teleproto": "^1.232.1"
+  },
+  "devDependencies": {
+    "vite": "^8.0.8"
+  }
+}
