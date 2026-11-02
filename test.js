@@ -121,6 +121,24 @@ ok('parseRichTL: style-only buttons work, stateless buttons invalidate row', () 
   assert.strictEqual(parseRichTL(stateless), null);
 });
 
+ok('REAL wire capture: inline textButton pills parse to exact rows', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { Reader } = require('teleproto/tl/binary/Reader');
+  const { parseRichTL } = require('./parser');
+  const hex = fs.readFileSync(path.join(__dirname, 'test/fixtures/rich-wire-capture.hex'), 'utf8').trim();
+  const rich = new Reader(Buffer.from(hex, 'hex')).tgReadObject();
+  assert.deepStrictEqual(parseRichTL(rich), [
+    { word: 'HELLO', result: 'RRRRR' },
+    { word: 'APPLE', result: 'RYRRR' },
+    { word: 'PILOT', result: 'YRRRR' },
+    { word: 'HAPPY', result: 'RRRGG' },
+    { word: 'HARRY', result: 'RRRRG' },
+    { word: 'PARTY', result: 'YRRRG' },
+    { word: 'PUPPY', result: 'RGRGG' },
+  ]);
+});
+
 // ---- handler end-to-end (teleproto MTProto message in, reply out) ----
 (async () => {
   const { handle } = require('./bot');
@@ -181,5 +199,5 @@ ok('parseRichTL: style-only buttons work, stateless buttons invalidate row', () 
   assert(bare.sent.length && bare.sent[0].message.includes('\u{1F52C}'));
   assert(bare.sent[0].message.includes('"richMessage": "ABSENT"'));
   console.log('ok  handler self-diagnoses unreadable boards');
-  console.log(`\n${n + 6} tests passed`);
+  console.log(`\n${n + 7} tests passed`);
 })().catch(e => { console.error(e); process.exit(1); });

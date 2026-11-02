@@ -43,7 +43,17 @@ a screenshot via colour + OCR (fallback), or from legacy emoji boards.
 - A Telegram Bot Token (from [@BotFather](https://t.me/BotFather)).
 - `API_ID` / `API_HASH` from <https://my.telegram.org> (MTProto login).
 
-### Real-time pill reading (USER_SESSION)
+### How pills are read (the 2026 WordSeek format)
+WordSeek renders pills as **inline `textButton` RichText nodes** (carrying
+`inlineButtonTypeCallback` data `wh:{state}:{letter}` plus `richButtonStyle`
+colours) nested inside paragraphs - *not* as block-level button rows. The
+parser walks the whole rich-message tree, collects those buttons in document
+order and chunks them into rows via the "N-letter mode" heading. A real
+captured wire dump is a regression fixture
+(`test/fixtures/rich-wire-capture.hex`). Group boards, private chats and
+forwards all work - pure bot, no extra accounts.
+
+### Optional: reader session (USER_SESSION, not required)
 See above section...
 
 ### Transport: MTProto via teleproto (not gramjs, not Bot API)

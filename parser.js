@@ -185,41 +185,92 @@ function _tlRichTextPlain(node) {
  * contain PageBlockButtonRow { buttons: PageButton[] } with
  * PageButton { text: RichText, type: InlineButtonTypeCallback{data}, style: RichButtonStyle }.
  */
+/**
+ * Collect inline RichText textButton nodes (WordSeek renders pills as
+ * textButton RichText nodes inside paragraphs / textConcat, NOT as
+ * PageBlockButtonRow blocks).  Document order = reading order.
+ */
+function _collectTextButtons(node, out) {
+    if (!node || typeof node !== 'object') return out;
+    if (Array.isArray(node)) { for (const x of node) _collectTextButtons(x, out); return out; }
+    const cn = node.className || '';
+    if (cn === 'TextButton' || cn === 'PageButton' ||
+        (!cn && node.text && (node.type || node.callback_data))) {
+        out.push(node);
+        return out;
+    }
+    for (const k of Object.keys(node)) {
+        if (k.charAt(0) === '_') continue;
+        _collectTextButtons(node[k], out);
+    }
+    return out;
+}
+
+function _pairsFromButtons(btns) {
+    const pairs = [];
+    for (const btn of btns) {
+        const data = (btn.type && btn.type.data) || btn.callback_data;
+        const dec = data ? _decodeWh(data) : null;
+        let letter, state;
+        if (dec) {
+            letter = dec.letter; state = dec.state;
+        } else {
+            letter = (stripZeroWidth(_tlRichTextPlain(btn && btn.text))
+                .replace(/[^a-zA-Z]/g, '').toUpperCase()).slice(-1);
+            const st = btn.style;
+            if (!st) { pairs.push(null); continue; }
+            state = (st.bgSuccess || st === 'success') ? 'correct'
+                : (st.bgDanger || st === 'danger') ? 'absent' : 'present';
+        }
+        if (!letter) { pairs.push(null); continue; }
+        pairs.push({ letter, state });
+    }
+    return pairs;
+}
+
+function _rowsFromPairs(pairs, L) {
+    const rows = [];
+    for (let i = 0; i + L <= pairs.length; i += L) {
+        const chunk = pairs.slice(i, i + L);
+        if (chunk.some(p => !p)) continue;
+        rows.push({ word: chunk.map(p => p.letter).join(''), result: chunk.map(p => STATE_TO_CHAR[p.state]).join('') });
+    }
+    return rows;
+}
+
 function parseRichTL(rich) {
     if (!rich) return null;
-    const rows = [];
+    const explicitRows = [];
+    const inlinePairs = [];
+    let headingLen = 0;
     const walk = (node) => {
         if (!node || typeof node !== 'object') return;
         if (Array.isArray(node)) { node.forEach(walk); return; }
-        if (Array.isArray(node.buttons)) {
-            let word = '', result = '', rowOk = true;
-            for (const btn of node.buttons) {
-                const data = btn && btn.type && btn.type.data;
-                const dec = data ? _decodeWh(data) : null;
-                let letter, state;
-                if (dec) {
-                    letter = dec.letter;
-                    state = dec.state;
-                } else {
-                    letter = (stripZeroWidth(_tlRichTextPlain(btn && btn.text))
-                        .replace(/[^a-zA-Z]/g, '').toUpperCase()).slice(-1);
-                    const st = btn && btn.style;
-                    // no callback data AND no style => Telegram stripped the
-                    // state (happens on forwards); the row is then unsolvable
-                    if (!st) { rowOk = false; continue; }
-                    state = st.bgSuccess ? 'correct'
-                        : st.bgDanger ? 'absent' : 'present';
-                }
-                if (!letter) { rowOk = false; continue; }
-                word += letter;
-                result += STATE_TO_CHAR[state];
+        if (Array.isArray(node.buttons)) {          // PageBlockButtonRow shape
+            const pairs = _pairsFromButtons(node.buttons);
+            if (pairs.every(p => p)) {
+                explicitRows.push({ word: pairs.map(p => p.letter).join(''), result: pairs.map(p => STATE_TO_CHAR[p.state]).join('') });
             }
-            if (rowOk && word) rows.push({ word, result });
             return;
         }
         if (Array.isArray(node.blocks)) { node.blocks.forEach(walk); return; }
+        const plain = _tlRichTextPlain(node);
+        if (plain && !headingLen) {
+            const m = plain.match(/(\d)-letter/i);
+            if (m) headingLen = parseInt(m[1]);
+        }
+        const btns = _collectTextButtons(node, []);
+        if (btns.length) inlinePairs.push(..._pairsFromButtons(btns));
     };
     walk(rich);
+    if (explicitRows.length) return explicitRows;
+    if (!inlinePairs.length) return null;
+    let L = headingLen;
+    if (!L) {
+        for (const cand of [4, 5, 6]) if (inlinePairs.length % cand === 0) { L = cand; break; }
+    }
+    if (!L) return null;
+    const rows = _rowsFromPairs(inlinePairs, L);
     return rows.length ? rows : null;
 }
 
