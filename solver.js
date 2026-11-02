@@ -113,7 +113,10 @@ class WordleSolver {
     if (S.length <= 2) {
       return S.filter(w => !guessed.has(w)).map(w => w.toUpperCase()).slice(0, limit);
     }
-    const pool = this.commonWords.filter(w => !guessed.has(w));
+    // Only ever suggest words that are still possible secrets: probes from
+    // the raw common list can contradict known feedback (contain proven
+    // absent letters, miss required greens) and feel like invalid guesses.
+    const pool = S.filter(w => !guessed.has(w));
     if (!pool.length) return [];
     const scored = [];
     for (const g of pool) {
@@ -135,6 +138,10 @@ class WordleSolver {
    */
   getSuggestions(limit = 10) {
     if (this.possibleWords.length === 0) return [];
+
+    // Few candidates left: hand them over directly - each one can win.
+    const unguessed = this.possibleWords.filter(w => !this.guesses.some(g => g.guess === w));
+    if (unguessed.length <= limit) return unguessed.map(w => w.toUpperCase());
 
     if (this.possibleWords.length <= 400) {
       const exact = this._expectedRanked(limit);
