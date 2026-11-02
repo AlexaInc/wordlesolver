@@ -198,6 +198,7 @@ ok('REAL wire capture: inline textButton pills parse to exact rows', () => {
   });
   await handle(emptyText.msg);
   assert(emptyText.sent.length && /pill buttons/.test(emptyText.sent[0].message), 'empty-text rich reply');
+  assert(/(Best guess|The word is): `[A-Z][a-z]+`/.test(emptyText.sent[0].message), 'tap-to-copy code word');
   console.log('ok  handler solves rich board with empty plain text');
 
   // with a user reader attached, stripped rich boards stay silent (reader answers)

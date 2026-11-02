@@ -31,8 +31,18 @@ const ask = (q) => new Promise((res) => rl.question(q, res));
     password: async () => (await ask('2FA password (Enter to skip if none): ')) || undefined,
     onError: (err) => console.log('login error:', err.message),
   });
-  console.log('\nLogin OK. Add this line to your .env file:\n');
-  console.log('USER_SESSION=' + client.session.save());
+  const sess = client.session.save();
+  // persist straight into .env so service restarts reuse the session
+  const envPath = require('path').join(__dirname, '.env');
+  const fs = require('fs');
+  let env = '';
+  try { env = fs.readFileSync(envPath, 'utf8'); } catch (e) { /* no .env yet */ }
+  if (/^USER_SESSION=/m.test(env)) env = env.replace(/^USER_SESSION=.*$/m, 'USER_SESSION=' + sess);
+  else env = (env ? env.replace(/\n?$/, '\n') : '') + 'USER_SESSION=' + sess + '\n';
+  fs.writeFileSync(envPath, env);
+  console.log('\nLogin OK. USER_SESSION saved to .env - it survives restarts.');
+  console.log('Session string (backup copy):');
+  console.log('USER_SESSION=' + sess);
   console.log('\nThen: sudo systemctl restart wordlesolver');
   await client.disconnect();
   rl.close();
