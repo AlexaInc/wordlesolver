@@ -31,7 +31,10 @@ function diagnose(message) {
   const text = message.message || message.text || message.caption || '';
   const rich = message.richMessage || message.rich_message;
   const info = {
+    out: !!message.out || null,
     forward: message.forwardOrigin || message.fwdFrom ? 'yes' : null,
+    fwd_from: (message.fwdFrom || message.forwardOrigin) ? JSON.stringify(message.fwdFrom || message.forwardOrigin).slice(0, 150) : null,
+    rich_keys: Object.keys(message).filter(k => /rich|fwd|forward|entit|media|photo|button/i.test(k)).join(',') || null,
     has_photo: !!message.photo,
     zero_width_chars: (text.match(/[\u200B-\u200D\u2060\uFEFF]/g) || []).length,
     entities: (message.entities || []).map(e => e.className || e.type).join(',') || null,
@@ -88,15 +91,20 @@ function logUpdate(message) {
   };
   if (rich) walk(rich);
   const fwd = message.forwardOrigin || message.fwdFrom;
-  console.log(`[update] chat=${message.chat && message.chat.id} fwd=${fwd ? 'yes' : 'no'}` +
-    ` photo=${message.photo ? 'yes' : 'no'} rich=${rich ? 'yes' : 'no'}` +
-    ` blocks=${blocks} buttons=${buttons} textLen=${text.length}` +
-    ` zw=${(text.match(/[\u200B-\u200D\u2060\uFEFF]/g) || []).length}`);
+  const zw = (text.match(/[\u200B-\u200D\u2060\uFEFF]/g) || []).length;
+  let line = `[update] out=${message.out ? 'yes' : 'no'} chat=${message.chat && message.chat.id}` +
+    ` fwd=${fwd ? 'yes' : 'no'} photo=${message.photo ? 'yes' : 'no'}` +
+    ` rich=${rich ? 'yes' : 'no'} blocks=${blocks} buttons=${buttons}` +
+    ` textLen=${text.length} zw=${zw}`;
+  if (text) line += ` text=${JSON.stringify(text.slice(0, 120))}`;
+  if (rich && message.richText) line += ` richText=${JSON.stringify(String(message.richText).slice(0, 120))}`;
+  console.log(line);
 }
 
 async function handle(message, clientArg) {
   const text = message.message || message.text || message.caption || '';
   logUpdate(message);
+  if (message.out) return; // our own reply echoing back
   const reply = async (body, md = true) => {
     await message.reply({ message: body, parseMode: md ? 'md' : undefined });
   };
@@ -178,7 +186,8 @@ async function handle(message, clientArg) {
   // 4) looks like a WordSeek board but nothing readable? diagnose loudly
   const fwd = message.forwardOrigin || message.fwdFrom;
   const fwdName = fwd && ((fwd.userName || fwd.username || (fwd.fromId && fwd.fromId.username) || '') + '').toLowerCase();
-  const looksLikeBoard = /\d-letter mode/i.test(text) || fwdName === 'wordseek' ||
+  const looksLikeBoard = /\d-letter mode/i.test(text) || /\d+\/30 guesses/i.test(text) ||
+    /[\u200B-\u200D\u2060\uFEFF]/.test(text) || fwdName === 'wordseek' ||
     !!message.richMessage || !!message.rich_message;
   if (!processedLines && (fwd || looksLikeBoard || debugArmed.has(message.chat.id))) {
     debugArmed.delete(message.chat.id);
